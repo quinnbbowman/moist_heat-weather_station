@@ -13,6 +13,26 @@ import matplotlib.colors as colors
 lv = 2501000 # j/kg
 cp = 1005.7 # J / (kg * K)
 
+era5_wbt_path  = ''
+era5_surfmse_path = ''
+era5_lft_satdef_path = ''
+era5_ft_satmse_path = ''
+
+#flat numpy arrays are all station monthly maximum values, calculated in calculate_monthly_maxes.py
+#the era5 counterparts are generated in interpolate_reanalysis.py
+#multiple dimensional arrays are of shape months x stations, and are converted to flat of same size by flattening, then removing nans
+
+interpolated_era5_lftsatdef_path = '' #flat numpy array - preprocessed in month max generation code
+interpolated_era5_zonalmean_satmse_500_path = '' #flat numpy array - preprocessed in month max generation code
+interpolated_era5_satmse_500_path = '' #flat numpy array - preprocessed in month max generation code
+
+monmax_locationarray_path = '' #numpy array shape of number of months x station id, array list [time, lat, lon], created in month max generation code
+
+monmax_stat_surfmse_path = '' #flat numpy array - preprocessed in month max generation code
+monmax_era5_surfmse_path = '' #flat numpy array
+monmax_stat_surf_wbts_path = '' #flat numpy array
+monmax_era5_surf_wbts_path = '' #flat numpy array
+
 def linregress_constant_yoffset(xs,ys): # calculating the slope of a best fit linear regression, holding the y intercept to 0
     numerators = []
     denominators = []
@@ -41,9 +61,9 @@ def linregress_full(xs,ys): # calculating the best fit linear regression line
     return slope, intercept
 
 #tropical mean reanalysis EQE relationship binning
-tr_surfmse = xr.open_dataset('/home/quinn/Documents/driergethotternenso/era5_850/1deg_interp_surfmse,40-22.nc').mse.mean(dim='lon').mean(dim='lat').values
-tr_lftsatdef = xr.open_dataset('/home/quinn/Documents/driergethotternenso/era5_850/1deg_interp_satdef,40-22.nc').satdef.mean(dim='lon').mean(dim='lat').values
-tr_ftmse = xr.open_dataset('/home/quinn/Documents/driergethotternenso/era5_850/1deg_interp_500hpamse,40-22.nc').satmse.mean(dim='lon').mean(dim='lat').values
+tr_surfmse = xr.open_dataset(era5_surfmse_path).mse.mean(dim='lon').mean(dim='lat').values
+tr_lftsatdef = xr.open_dataset(era5_lft_satdef_path).satdef.mean(dim='lon').mean(dim='lat').values
+tr_ftmse = xr.open_dataset(era5_ft_satmse_path).satmse.mean(dim='lon').mean(dim='lat').values
 
 inst = tr_surfmse - tr_ftmse #undilute instability
 
@@ -67,7 +87,7 @@ for i in range(len(trmean_surfbins)-1):
     trmean_instvals += [binmean]
 
 #tropical mean reanalysis wet bulb temperatures
-tr_wbt = xr.open_dataset('/home/quinn/Documents/driergethotternenso/reprocessed_daily/surfwbt,40-22.nc').wbt.mean(dim='lon').mean(dim='lat').values - 273.15
+tr_wbt = xr.open_dataset(era5_wbt_path).wbt.mean(dim='lon').mean(dim='lat').values - 273.15
 
 #calculates the mean surface wet-bulb temperature for each tropical mean bin  saturation deficit
 trmean_wbtvals = []
@@ -89,25 +109,26 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
     return new_cmap
 
 #binning monthly maximums
-localsatdef = np.load('era5interp_850q-_reprocessed.npy')
-zmeanmse = np.load('era5interp_zmeanh*500_reprocessed.npy')
-localftmse = np.load('era5interph*500_reprocessed.npy')
+localsatdef = np.load(interpolated_era5_lftsatdef_path)
+zmeanmse = np.load(interpolated_era5_zonalmean_satmse_500_path)
+localftmse = np.load(interpolated_era5_satmse_500_path)
 
 
-indays_monmax = np.load('reprocessed_monthmsemaxind[mon,stat,[time,lon,lat].npy')
+indays_monmax = np.load(monmax_locationarray_path)
 times = indays_monmax[:, :, 0]
 times_flat = times.flatten()
 cleantimes = times_flat[~np.isnan(times_flat)]
 
-surfmses_stat = np.load('/home/quinn/Documents/driergethotternenso/reprocessed_daily/reprocessed_monthmsemax[mon,stat].npy').flatten()
+surfmses_stat = np.load(monmax_stat_surfmse_path).flatten()
 surfmses_stat = surfmses_stat[~np.isnan(surfmses_stat)]
 
-surfmses_era5 = np.load('/home/quinn/Documents/driergethotternenso/reprocessed_daily/era5interpsurfmse_reprocessed.npy')
+surfmses_era5 = np.load(monmax_era5_surfmse_path)
 
-surf_wbts_stat = np.load('/home/quinn/Documents/driergethotternenso/reprocessed_daily/reprocessed_monthwbtmax[mon,stat].npy').flatten()
+surf_wbts_stat = np.load(monmax_stat_surf_wbts_path).flatten()
 surf_wbts_stat = surf_wbts_stat[~np.isnan(surf_wbts_stat)]
 
-surf_wbts_era5 = np.load('/home/quinn/Documents/driergethotternenso/reprocessed_daily/era5surfwbt_reprocessed.npy') - 273.15
+
+surf_wbts_era5 = np.load(monmax_era5_surf_wbts_path) - 273.15
 
 monthdata = np.zeros((len(surfmses_stat),8))
 monthdata[:,0] = surfmses_stat
