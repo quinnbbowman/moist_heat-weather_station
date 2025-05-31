@@ -13,25 +13,25 @@ import matplotlib.colors as colors
 lv = 2501000 # j/kg
 cp = 1005.7 # J / (kg * K)
 
-era5_wbt_path  = ''
-era5_surfmse_path = ''
-era5_lft_satdef_path = ''
-era5_ft_satmse_path = ''
+era5_wbt_path  = 'surfwbt,40-22.nc'
+era5_surfmse_path = 'surfmse,40-22.nc'
+era5_lft_satdef_path = 'satdef850,40-22.nc'
+era5_ft_satmse_path = 'satmse_500,40-22.nc'
 
-#flat numpy arrays are all station monthly maximum values, calculated in calculate_monthly_maxes.py
+#2d numpy arrays are all station monthly maximum values, shape of (num stations x num months) calculated in calculate_monthly_maxes.py
 #the era5 counterparts are generated in interpolate_reanalysis.py
-#multiple dimensional arrays are of shape months x stations, and are converted to flat of same size by flattening, then removing nans
+#2d arrays are of shape months x stations, and are converted to flat of same size by flattening, then removing nans
 
-interpolated_era5_lftsatdef_path = '' #flat numpy array - preprocessed in month max generation code
-interpolated_era5_zonalmean_satmse_500_path = '' #flat numpy array - preprocessed in month max generation code
-interpolated_era5_satmse_500_path = '' #flat numpy array - preprocessed in month max generation code
+interpolated_era5_lftsatdef_path = 'monmax850satdef.npy' #flat numpy array - made in interpolation code
+interpolated_era5_zonalmean_satmse_500_path = 'monmaxzmean500satmse.npy' #flat numpy array -- made in interpolation code
+interpolated_era5_satmse_500_path = 'monmax500satmse.npy' #flat numpy array - made in interpolation code
 
-monmax_locationarray_path = '' #numpy array shape of number of months x station id, array list [time, lat, lon], created in month max generation code
+monmax_locationarray_path = 'monthmsemaxind[mon,stat,[time,lon,lat].npy' #numpy array shape of number of months x station id, array list [time, lat, lon], created in month max generation code
 
-monmax_stat_surfmse_path = '' #flat numpy array - preprocessed in month max generation code
-monmax_era5_surfmse_path = '' #flat numpy array
-monmax_stat_surf_wbts_path = '' #flat numpy array
-monmax_era5_surf_wbts_path = '' #flat numpy array
+monmax_stat_surfmse_path = 'monthmsemax[mon,stat].npy' #2d numpy array - preprocessed in month max generation code, flattened later
+monmax_era5_surfmse_path = 'monmaxsurfmse_era5.npy' #flat numpy array
+monmax_stat_surf_wbts_path = 'monthwbtmax[mon,stat].npy.npy' #2d numpy array - flattened later
+monmax_era5_surf_wbts_path = 'monmaxsurfwbt_era5.npy' #flat numpy array
 
 def linregress_constant_yoffset(xs,ys): # calculating the slope of a best fit linear regression, holding the y intercept to 0
     numerators = []
