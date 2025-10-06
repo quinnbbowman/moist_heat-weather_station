@@ -244,194 +244,120 @@ era_wbtdf = pd.DataFrame(fullgridwbt_e5_med)
 
 #-----making plots-----
 
-def double_line_plot(era_instdf, ws_instdf, trxbinmeans, trmeanmse, bin_boundaries):
-    # takes in pandas dataframes of reanalysis and weather station undilute instability
-    # tropical mean arrays of undilute instability, and tropical mean saturation deficit locations
+def lineplots_4panel(era_instdf,ws_instdf, era_wbtdf,ws_wbtdf, trxbinmeans,trmeanmse,trmeanwbts,bin_boundaries):
+    # takes in pandas dataframes of reanalysis and weather station data, saturation deficit bin size x free tropoospheric bin size
+    #for reanalysis and weather station instability and wet-bulb temperature
+    #also takes in tropical-mean saturation deficits, surface MSE, and wet-bulb temperatures
+
     # also takes in saturation deficit bin boundaries
 
-    # formatting
-    fig = plt.figure(figsize=(16, 8))
-
+    fig = plt.figure(figsize=(16,16))
     subplot_title_fontsize = 20
     label_title_fontsize = 18
     tick_fontsize = 16
 
-    pcsy = np.arange(0, 1 + ybindiv, ybindiv)
+    pcsy = np.arange(0,1+ybindiv,ybindiv)
 
-    n_lines = len(pcsy) - 1
-    c = np.arange(1, n_lines + 1)
+    c = hsmeans
     cmap = plt.get_cmap('plasma')
-    cmapsubset = truncate_colormap(cmap, 0, .7)
+    cmapsubset = truncate_colormap(cmap,0,.7)
     norm = mpl.colors.Normalize(vmin=c.min(), vmax=c.max())
     cmap = mpl.cm.ScalarMappable(norm=norm, cmap=cmapsubset)
     cmap.set_array([])
 
-    gs = fig.add_gridspec(2, 3, bottom=0.1, top=0.9, wspace=0.05, hspace=.04, width_ratios=(10, 10, 1),
-                          height_ratios=(10, 0.5))
 
-    ax_l = fig.add_subplot(gs[0, 0])
-    ax_r = fig.add_subplot(gs[0, 1], sharey=ax_l)
-    ax_cbar = fig.add_subplot(gs[0, 2])
+    gs0 = fig.add_gridspec(4, 3,bottom=0.1, top=0.9,wspace=0.05,hspace=.05,width_ratios=(9,9,1.1),height_ratios=(9,1,9,.5))
+    ax_e5_inst = fig.add_subplot(gs0[2, 0])
+    ax_ws_inst = fig.add_subplot(gs0[2, 1],sharey=ax_e5_inst)
+    ax_e5_wbt = fig.add_subplot(gs0[0, 0])
+    ax_ws_wbt = fig.add_subplot(gs0[0, 1],sharey=ax_e5_wbt)
 
-    ax_bl = fig.add_subplot(gs[1, 0], sharex=ax_l)
-    ax_br = fig.add_subplot(gs[1, 1], sharex=ax_r)
+    for y in range(len(pcsy)-1):
+        e5msenar = np.squeeze(era_instdf.iloc[y,:].values) # ERA5 undilute instability varying with satdef along a constant free tropospheric temperature percentile
+        wsmsear = np.squeeze(ws_instdf.iloc[y,:].values) # weather station undilute instability varying with satdef along a constant free tropospheric temperature percentile
 
-    plt.setp(ax_r.get_yticklabels(), visible=False);
+        e5wbtar = np.squeeze(era_wbtdf.iloc[y,:].values) # ERA5 undilute instability varying with satdef along a constant free tropospheric temperature percentile
+        wswbtar = np.squeeze(ws_wbtdf.iloc[y,:].values) # weather station undilute instability varying with satdef along a constant free tropospheric temperature percentile
 
-    # for each free tropospheric temperature bin
-    for y in range(len(pcsy) - 1):
-        e5meanar = np.squeeze(era_instdf.iloc[y,
-                              :].values)  # ERA5 undilute instability varying with satdef along a constant free tropospheric temperature percentile
-        wsmeanar = np.squeeze(ws_instdf.iloc[y,
-                              :].values)  # weather station undilute instability varying with satdef along a constant free tropospheric temperature percentile
+        ax_e5_inst.plot(sdmeans/1000,e5msenar/1000,c=cmap.to_rgba(hsmeans[y]),lw=2) #plotting instability per saturation deficit in jk/kg
+        ax_ws_inst.plot(sdmeans/1000,wsmsear/1000,c=cmap.to_rgba(hsmeans[y]),lw=2)
+        ax_e5_wbt.plot(sdmeans/1000,e5wbtar,c=cmap.to_rgba(hsmeans[y]),lw=2) #plotting instability per saturation deficit in jk/kg
+        ax_ws_wbt.plot(sdmeans/1000,wswbtar,c=cmap.to_rgba(hsmeans[y]),lw=2)
 
-        ax_l.plot(sdmeans / 1000, e5meanar / 1000, c=cmap.to_rgba(y + 1),
-                  lw=2)  # plotting instability per saturation deficit in jk/kg
-        ax_r.plot(sdmeans / 1000, wsmeanar / 1000, c=cmap.to_rgba(y + 1), lw=2)
+    ax_e5_bw = fig.add_subplot(gs0[3, 0],sharex=ax_e5_wbt)
+    ax_ws_bw = fig.add_subplot(gs0[3, 1],sharex=ax_ws_wbt)
 
-    cbar = fig.colorbar(cmap, ticks=[1, len(pcsy) - 1], cax=ax_cbar)
-    cbar.set_ticklabels(['Colder Free \n Troposphere', 'Warmer Free \nTroposphere'], fontsize=tick_fontsize)
+    ax_cbar = fig.add_subplot(gs0[:3, 2])
 
-    plt.setp(ax_l.get_yticklabels(), fontsize=tick_fontsize);
+    cbar = fig.colorbar(cmap,ticks=hsmeans,cax = ax_cbar)
+    cbar.set_ticklabels(np.int64(hsmeans/1000),fontsize=tick_fontsize)
+    cbar.set_label(r"Bin-Mean $h^*_{500} \enspace (kJ\:kg^{-1})$",fontsize=label_title_fontsize)
 
-    ax_l.set_ylabel(r"Bin Undilute Instability $\enspace kjJ\:kg^{-1}$", fontsize=label_title_fontsize)
+    ax_e5_inst.set_title('Reanalysis Instability',fontsize=subplot_title_fontsize)
+    ax_e5_wbt.set_title('Reanalysis Wet-Bulb Temperature',fontsize=subplot_title_fontsize)
+    ax_ws_inst.set_title('Weather Station Instability',fontsize=subplot_title_fontsize)
+    ax_ws_wbt.set_title('Weather Station Wet-Bulb Temperature',fontsize=subplot_title_fontsize)
 
-    fig.suptitle('Binned Instability Response to Saturation Deficit', fontsize=24);
+    ax_e5_inst.set_ylabel(r"Undilute Instability $\enspace (kJ\:kg^{-1})$",fontsize=label_title_fontsize)
+    ax_e5_wbt.set_ylabel(r"Wet-Bulb Temperature $\degree C $",fontsize=label_title_fontsize)
 
-    # plotting tropical mean lines
+
+    fig.suptitle('Binned Moist Heat and Instability ',fontsize=24,y=.95)
+
     xbinmeans = trxbinmeans
     trmean_msevals = trmeanmse
-    ax_l.plot(xbinmeans, trmean_msevals, color='black', label='Tropical Mean', lw=3)
-    ax_r.plot(xbinmeans, trmean_msevals, color='black', label='Tropical Mean', lw=3)
-
-    ax_l.set_title('Reanalysis', fontsize=subplot_title_fontsize)
-    ax_r.set_title('Weather Station', fontsize=subplot_title_fontsize)
-
-    ax_l.text(x=2, y=13, s='a', size=26)
-    ax_r.text(x=2, y=13, s='b', size=26)
-
-    # formatting, plotting bin boundaries
-    Z = [[1, 0] * 10]
-    ax_bl.pcolormesh(bin_boundaries * 2501000 / 1000, [0, 1], Z, cmap='binary')
-    ax_bl.arrow(35, .5, 4, 0, head_width=.7, length_includes_head=True, fc='black')
-    ax_bl.set_xlim(0, 40)
-    ax_bl.set_xlabel(r"Bin Saturation Deficit   $Lv\:q^+ \enspace kj\:kg^{-1}$", fontsize=label_title_fontsize);
-
-    ax_br.pcolormesh(bin_boundaries * 2501000 / 1000, [0, 1], Z, cmap='binary')
-    ax_br.arrow(35, .5, 4, 0, head_width=.7, length_includes_head=True, fc='black')
-    ax_br.set_xlim(0, 40)
-    ax_br.set_xlabel(r"Bin Saturation Deficit   $Lv\:q^+ \enspace kj\:kg^{-1}$", fontsize=label_title_fontsize);
-
-    plt.setp(ax_l.get_xticklabels(), visible=False);
-    plt.setp(ax_r.get_xticklabels(), visible=False);
-    plt.setp(ax_bl.get_yticklabels(), visible=False);
-    plt.setp(ax_br.get_yticklabels(), visible=False);
-
-    plt.setp(ax_bl.get_xticklabels(), fontsize=tick_fontsize);
-    plt.setp(ax_br.get_xticklabels(), fontsize=tick_fontsize);
-    #
-    ax_l.grid()
-    ax_r.grid()
-
-    ax_l.legend(fontsize=12)
-    ax_r.legend(fontsize=12)
-
-    return fig, ax_l, ax_r
+    ax_ws_inst.plot(xbinmeans,trmean_msevals,color='black',label='Tropical Mean',lw=3)
+    ax_e5_inst.plot(xbinmeans,trmean_msevals,color='black',label='Tropical Mean',lw=3)
+    ax_ws_wbt.plot(xbinmeans,trmeanwbts,color='black',label='Tropical Mean',lw=3)
+    ax_e5_wbt.plot(xbinmeans,trmeanwbts,color='black',label='Tropical Mean',lw=3)
 
 
-def double_line_plot_wbt(era_wbtdf, ws_wbtdf, trxbinmeans, trmeanwbts, bin_boundaries):
-    # takes in pandas dataframes of reanalysis and weather station wet bulb temps
-    # tropical mean arrays of wet bulb temperatures, and tropical mean saturation deficit locations
-    # also takes in saturation deficit bin boundaries
 
-    # formatting
-    subplot_title_fontsize = 20
-    label_title_fontsize = 18
-    tick_fontsize = 16
-    fig = plt.figure(figsize=(16, 8))
 
-    pcsy = np.arange(0, 1 + ybindiv, ybindiv)
 
-    n_lines = len(pcsy) - 1
-    c = np.arange(1, n_lines + 1)
-    cmap = plt.get_cmap('plasma')
-    cmapsubset = truncate_colormap(cmap, 0, .7)
-    norm = mpl.colors.Normalize(vmin=c.min(), vmax=c.max())
-    cmap = mpl.cm.ScalarMappable(norm=norm, cmap=cmapsubset)
-    cmap.set_array([])
+    Z = [[1,0]*10]
+    ax_e5_bw.pcolormesh(bin_boundaries*2501000/1000,[0,1],Z,cmap='binary')
+    ax_e5_bw.arrow(35, .5, 4, 0,head_width=.7,length_includes_head=True,fc='black')
+    ax_e5_bw.set_xlim(0,40)
+    ax_e5_bw.set_xlabel(r"Bin Saturation Deficit   $Lv\:q^+ \enspace (kJ\:kg^{-1})$",fontsize=label_title_fontsize);
 
-    gs = fig.add_gridspec(2, 3, bottom=0.1, top=0.9, wspace=0.05, hspace=.04, width_ratios=(10, 10, 1),
-                          height_ratios=(10, 0.5))
+    ax_ws_bw.pcolormesh(bin_boundaries*2501000/1000,[0,1],Z,cmap='binary')
+    ax_ws_bw.arrow(35, .5, 4, 0,head_width=.7,length_includes_head=True,fc='black')
+    ax_ws_bw.set_xlim(0,40)
+    ax_ws_bw.set_xlabel(r"Bin Saturation Deficit   $Lv\:q^+ \enspace (kJ\:kg^{-1})$",fontsize=label_title_fontsize);
 
-    ax_l = fig.add_subplot(gs[0, 0])
-    ax_r = fig.add_subplot(gs[0, 1], sharey=ax_l)
-    ax_cbar = fig.add_subplot(gs[0, 2])
+    plt.setp(ax_ws_inst.get_yticklabels(),visible=False);
+    plt.setp(ax_ws_wbt.get_yticklabels(),visible=False);
 
-    ax_bl = fig.add_subplot(gs[1, 0], sharex=ax_l)
-    ax_br = fig.add_subplot(gs[1, 1], sharex=ax_r)
+    plt.setp(ax_e5_bw.get_yticklabels(),visible=False);
+    plt.setp(ax_ws_bw.get_yticklabels(),visible=False);
 
-    plt.setp(ax_r.get_yticklabels(), visible=False);
+    plt.setp(ax_e5_inst.get_xticklabels(),visible=False);
+    plt.setp(ax_e5_wbt.get_xticklabels(),visible=False);
+    plt.setp(ax_ws_inst.get_xticklabels(),visible=False);
+    plt.setp(ax_ws_wbt.get_xticklabels(),visible=False);
 
-    # for each free tropospheric temperature bin:
-    for y in range(len(pcsy) - 1):
-        e5meanar = np.squeeze(era_wbtdf.iloc[y,
-                              :].values)  # surface MSE varying with satdef along a constant free tropospheric temperature percentile
-        wsmeanar = np.squeeze(ws_wbtdf.iloc[y,
-                              :].values)  # surface MSE varying with satdef along a constant free tropospheric temperature percentile
+    plt.setp(ax_ws_bw.get_xticklabels(),fontsize=tick_fontsize);
+    plt.setp(ax_e5_bw.get_xticklabels(),fontsize=tick_fontsize);
+    plt.setp(ax_e5_inst.get_yticklabels(),fontsize=tick_fontsize);
+    plt.setp(ax_e5_wbt.get_yticklabels(),fontsize=tick_fontsize);
 
-        ax_l.plot(sdmeans / 1000, e5meanar, c=cmap.to_rgba(y + 1),
-                  lw=2)  # plotting reanalysis varying with satdef surface MSE
-        ax_r.plot(sdmeans / 1000, wsmeanar, c=cmap.to_rgba(y + 1),
-                  lw=2)  # plotting weather station varying with satdef surface MSE
+    plt.setp(ax_cbar.get_yticklabels(),fontsize=tick_fontsize);
 
-    cbar = fig.colorbar(cmap, ticks=[1, len(pcsy) - 1], cax=ax_cbar)
-    cbar.set_ticklabels(['Colder Free \n Troposphere', 'Warmer Free \nTroposphere'], fontsize=label_title_fontsize)
+    ax_e5_inst.grid()
+    ax_ws_inst.grid()
+    ax_e5_wbt.grid()
+    ax_ws_wbt.grid()
 
-    plt.setp(ax_l.get_yticklabels(), fontsize=tick_fontsize);
-    ax_l.set_ylabel(r"Bin Wet-Bulb Temperature $\degree C $", fontsize=label_title_fontsize)
-    fig.suptitle('Binned Wet-Bulb Temperature Response to Saturation Deficit', fontsize=24);
+    ax_e5_inst.text(x=2,y=13,s='c',size=26)
+    ax_ws_inst.text(x=2,y=13,s='d',size=26)
+    ax_e5_wbt.text(x=2,y=25.5,s='a',size=26)
+    ax_ws_wbt.text(x=2,y=25.5,s='b',size=26)
 
-    # plotting tropical mean lines
-    xbinmeans = trxbinmeans
-    trmeanwbts = trmeanwbts
-    ax_l.plot(xbinmeans, trmeanwbts, color='black', label='Tropical Mean', lw=3)
-    ax_r.plot(xbinmeans, trmeanwbts, color='black', label='Tropical Mean', lw=3)
-
-    ax_l.set_title('Reanalysis', fontsize=subplot_title_fontsize)
-    ax_r.set_title('Weather Station', fontsize=subplot_title_fontsize)
-    ax_l.set_xlim(0, 40)
-    ax_r.set_xlim(0, 40)
-    #
-    ax_l.text(x=2, y=25.5, s='a', size=26)
-    ax_r.text(x=2, y=25.5, s='b', size=26)
-
-    # formatting, plotting bin boundaries
-    Z = [[1, 0] * 10]
-    ax_bl.pcolormesh(bin_boundaries * 2501000 / 1000, [0, 1], Z, cmap='binary')
-    ax_bl.arrow(35, .5, 4, 0, head_width=.7, length_includes_head=True, fc='black')
-    ax_bl.set_xlim(0, 40)
-    ax_bl.set_xlabel(r"Bin Saturation Deficit   $Lv\:q^+ \enspace kJ\:kg^{-1}$", fontsize=label_title_fontsize);
-
-    ax_br.pcolormesh(bin_boundaries * 2501000 / 1000, [0, 1], Z, cmap='binary')
-    ax_br.arrow(35, .5, 4, 0, head_width=.7, length_includes_head=True, fc='black')
-    ax_br.set_xlim(0, 40)
-    ax_br.set_xlabel(r"Bin Saturation Deficit   $Lv\:q^+ \enspace kJ\:kg^{-1}$", fontsize=label_title_fontsize);
-
-    plt.setp(ax_l.get_xticklabels(), visible=False);
-    plt.setp(ax_r.get_xticklabels(), visible=False);
-    plt.setp(ax_bl.get_yticklabels(), visible=False);
-    plt.setp(ax_br.get_yticklabels(), visible=False);
-
-    plt.setp(ax_bl.get_xticklabels(), fontsize=tick_fontsize);
-    plt.setp(ax_br.get_xticklabels(), fontsize=tick_fontsize);
-    #
-    ax_l.grid()
-    ax_r.grid()
-
-    ax_l.legend(fontsize=12)
-    ax_r.legend(fontsize=12)
-
-    return fig, ax_l, ax_r
+    ax_e5_inst.legend(fontsize=12)
+    ax_ws_inst.legend(fontsize=12)
+    ax_e5_wbt.legend(fontsize=12)
+    ax_ws_wbt.legend(fontsize=12)
 
 
 def comparative_line_plot(era_instdf, ws_instdf, bin_boundaries):
@@ -546,17 +472,16 @@ def scatter_heat_plot_4panel(surfmsear_ws, surfWBTar_ws, surfmsear_era5, surfWBT
     hist_cmap_scheme = plt.get_cmap('cividis')
     hist_cmap_scheme = truncate_colormap(hist_cmap_scheme, .1, .9)
 
-    fig = plt.figure(figsize=(16, 15))
-    gs0 = fig.add_gridspec(2, 5, bottom=0.1, top=0.9, wspace=0.05, width_ratios=(9, 1, 1.2, 9, 1))
+    fig = plt.figure(figsize=(16, 16))
+    # gs0 = fig.add_gridspec(2, 5,bottom=0.1, top=0.9,wspace=0.05,width_ratios=(9,1,1.2,9,1))
+    gs0 = fig.add_gridspec(3, 2, bottom=0.1, top=0.9, wspace=0.1, hspace=.25, height_ratios=(9, 9, 1))
 
     # weather station plots
 
     ax_scatter_ws = fig.add_subplot(gs0[0, 0])
-    ax_sccolor_ws = fig.add_subplot(gs0[0, 1])
-    ax_heat_ws = fig.add_subplot(gs0[0, 3], sharey=ax_scatter_ws)
-    ax_heatcolor_ws = fig.add_subplot(gs0[0, 4])
+    ax_heat_ws = fig.add_subplot(gs0[0, 1], sharey=ax_scatter_ws)
 
-    gs01 = mpl.gridspec.GridSpecFromSubplotSpec(3, 3, wspace=0.1, hspace=0.1, subplot_spec=gs0[0, 3],
+    gs01 = mpl.gridspec.GridSpecFromSubplotSpec(3, 3, wspace=0.1, hspace=0.1, subplot_spec=gs0[0, 1],
                                                 width_ratios=(9, 9, 1.1), height_ratios=(9, 9, 1.1))
     ax_heat_ws_inset = fig.add_subplot(gs01[1, 1])
     ax_heat_ws_inset.hist2d(xs_ws / 1000, ys / 1000 * -1, cmin=1, bins=numbins, vmin=0, vmax=1500,
@@ -592,7 +517,6 @@ def scatter_heat_plot_4panel(surfmsear_ws, surfWBTar_ws, surfmsear_era5, surfWBT
     ax_scatter_ws.set_ylim(ymin, ymax)
     ax_scatter_ws.axline((x1, y1), (x2, y2), color=limline_colors, linewidth=limline_width, zorder=1)
     ax_scatter_ws.axvline(x=0, color=limline_colors, linewidth=limline_width, zorder=1)
-    sc_cbar_ws = fig.colorbar(scplot_ws, cax=ax_sccolor_ws, ticks=np.arange(25, 30))
 
     # getting bin densities for "convecting" bins
     (histvals, xedges, yedges, output) = ax_heat_ws.hist2d(xs_ws / 1000, ys / 1000 * -1, cmin=1, bins=numbins, vmin=0,
@@ -646,7 +570,6 @@ def scatter_heat_plot_4panel(surfmsear_ws, surfWBTar_ws, surfmsear_era5, surfWBT
     ax_heat_ws.set_ylim(ymin, ymax)
     ax_heat_ws.axline((x1, y1), (x2, y2), color=limline_colors, zorder=1, linewidth=limline_width)
     ax_heat_ws.axvline(x=0, color=limline_colors, zorder=1, linewidth=limline_width)
-    ax_hm_cbar_ws = fig.colorbar(output, cax=ax_heatcolor_ws, ticks=np.arange(0, 1800, 300))
 
     inset_cover_axes = mpl.patches.Rectangle((-2, ymin + 1), (xmax + 1), (44), zorder=5, linewidth=1.5,
                                              edgecolor='black', facecolor='white')
@@ -655,12 +578,10 @@ def scatter_heat_plot_4panel(surfmsear_ws, surfWBTar_ws, surfmsear_era5, surfWBT
     # -----reanalysis plots-----
 
     ax_scatter_era5 = fig.add_subplot(gs0[1, 0], sharex=ax_scatter_ws)
-    ax_sccolor_era5 = fig.add_subplot(gs0[1, 1])
-    ax_heat_era5 = fig.add_subplot(gs0[1, 3], sharey=ax_scatter_era5, sharex=ax_heat_ws)
-    ax_heatcolor_era5 = fig.add_subplot(gs0[1, 4])
+    ax_heat_era5 = fig.add_subplot(gs0[1, 1], sharey=ax_scatter_era5, sharex=ax_heat_ws)
 
     # heatmap
-    gs11 = mpl.gridspec.GridSpecFromSubplotSpec(3, 3, wspace=0.1, hspace=0.1, subplot_spec=gs0[1, 3],
+    gs11 = mpl.gridspec.GridSpecFromSubplotSpec(3, 3, wspace=0.1, hspace=0.1, subplot_spec=gs0[1, 1],
                                                 width_ratios=(9, 9, 1.1), height_ratios=(9, 9, 1.1))
     ax_heat_era5_inset = fig.add_subplot(gs11[1, 1])
     ax_heat_era5_inset.hist2d(xs_era5 / 1000, ys / 1000 * -1, cmin=1, bins=numbins, vmin=0, vmax=1500,
@@ -696,7 +617,6 @@ def scatter_heat_plot_4panel(surfmsear_ws, surfWBTar_ws, surfmsear_era5, surfWBT
     ax_scatter_era5.set_ylim(ymin, ymax)
     ax_scatter_era5.axline((x1, y1), (x2, y2), color=limline_colors, linewidth=limline_width, zorder=1)
     ax_scatter_era5.axvline(x=0, color=limline_colors, linewidth=limline_width, zorder=1)
-    sc_cbar_era5 = fig.colorbar(scplot_era5, cax=ax_sccolor_era5, ticks=np.arange(25, 30))
 
     # getting bin densities for "convecting" bins
     (histvals, xedges, yedges, output) = ax_heat_era5.hist2d(xs_era5 / 1000, ys / 1000 * -1, cmin=1, bins=numbins,
@@ -748,11 +668,15 @@ def scatter_heat_plot_4panel(surfmsear_ws, surfWBTar_ws, surfmsear_era5, surfWBT
     ax_heat_era5.set_ylim(ymin, ymax)
     ax_heat_era5.axline((x1, y1), (x2, y2), color=limline_colors, zorder=1, linewidth=limline_width)
     ax_heat_era5.axvline(x=0, color=limline_colors, zorder=1, linewidth=limline_width)
-    ax_hm_cbar_era5 = fig.colorbar(output, cax=ax_heatcolor_era5, ticks=np.arange(0, 1800, 300))
 
     inset_cover_axes = mpl.patches.Rectangle((-2, ymin + 1), (xmax + 1), (44), zorder=5, linewidth=1.5,
                                              edgecolor='black', facecolor='white')
     ax_heat_era5.add_patch(inset_cover_axes)
+    # colorbars
+    ax_sccolor = fig.add_subplot(gs0[2, 0])
+    ax_heatcolor = fig.add_subplot(gs0[2, 1])
+    sc_cbar = fig.colorbar(scplot_ws, cax=ax_sccolor, ticks=np.arange(25, 30), orientation='horizontal')
+    hm_cbar = fig.colorbar(output, cax=ax_heatcolor, ticks=np.arange(0, 1800, 300), orientation='horizontal')
 
     # formatting
     subplot_title_fontsize = 20
@@ -774,16 +698,15 @@ def scatter_heat_plot_4panel(surfmsear_ws, surfWBTar_ws, surfmsear_era5, surfWBT
     plt.setp(ax_scatter_ws.get_yticklabels(), fontsize=tick_fontsize);
     plt.setp(ax_scatter_ws.get_xticklabels(), fontsize=tick_fontsize);
 
-    plt.setp(ax_sccolor_ws.get_yticklabels(), fontsize=tick_fontsize);
-    plt.setp(ax_sccolor_era5.get_yticklabels(), fontsize=tick_fontsize);
-    plt.setp(ax_heatcolor_ws.get_yticklabels(), fontsize=tick_fontsize);
-    plt.setp(ax_heatcolor_era5.get_yticklabels(), fontsize=tick_fontsize);
+    plt.setp(ax_sccolor.get_xticklabels(), fontsize=tick_fontsize);
+    plt.setp(ax_heatcolor.get_xticklabels(), fontsize=tick_fontsize);
 
     plt.setp(ax_heat_ws.get_yticklabels(), visible=False);
     plt.setp(ax_heat_era5.get_yticklabels(), visible=False);
+    plt.setp(ax_heat_ws.get_xticklabels(), visible=False);
+    plt.setp(ax_scatter_ws.get_xticklabels(), visible=False);
 
-    ax_hm_cbar_era5.set_label("Bin Count", fontsize=label_title_fontsize)
-    ax_hm_cbar_ws.set_label("Bin Count", fontsize=label_title_fontsize)
+    hm_cbar.set_label("Bin Count", fontsize=label_title_fontsize)
 
     ax_scatter_ws.set_title('Weather Station Wet-Bulb Temperatures', fontsize=subplot_title_fontsize, y=1.01)
     ax_heat_ws.set_title('Weather Station Buoyancy Budget Heatmap', fontsize=subplot_title_fontsize, y=1.01)
@@ -791,15 +714,15 @@ def scatter_heat_plot_4panel(surfmsear_ws, surfWBTar_ws, surfmsear_era5, surfWBT
     ax_scatter_era5.set_title('Reanalysis Wet-Bulb Temperatures', fontsize=subplot_title_fontsize, y=1.01)
     ax_heat_era5.set_title('Reanalysis Buoyancy Budget Heatmap', fontsize=subplot_title_fontsize, y=1.01)
 
-    ax_heat_era5.set_xlabel(r'$MSE_{surf} - MSE^*_{500 \:ZM} \enspace kJ\:kg^{-1}$', fontsize=label_title_fontsize)
+    ax_heat_era5.set_xlabel(r'$h_{surf} - h^*_{500 \:ZM} \enspace (kJ\:kg^{-1})$', fontsize=label_title_fontsize)
 
-    ax_scatter_ws.set_ylabel(r"$Lv\:q^+ \:- \:[MSE^*_{500}]\,^{'} \enspace kJ\:kg^{-1}$", fontsize=label_title_fontsize)
-    ax_scatter_era5.set_xlabel(r'$MSE_{surf} - MSE^*_{500 \:ZM} \enspace kJ\:kg^{-1}$', fontsize=label_title_fontsize)
-    ax_scatter_era5.set_ylabel(r"$Lv\:q^+ \:- \:[MSE^*_{500}]\,^{'} \enspace kJ\:kg^{-1}$",
+    ax_scatter_ws.set_ylabel(r"$- (Lv\:q^+ \:+ \:[h^*_{500}]\,^{'}) \enspace (kJ\:kg^{-1})$",
+                             fontsize=label_title_fontsize)
+    ax_scatter_era5.set_xlabel(r'$h_{surf} - h^*_{500 \:ZM} \enspace (kJ\:kg^{-1})$', fontsize=label_title_fontsize)
+    ax_scatter_era5.set_ylabel(r"$- (Lv\:q^+ \:+ \:[h^*_{500}]\,^{'}) \enspace (kJ\:kg^{-1})$",
                                fontsize=label_title_fontsize)
 
-    sc_cbar_ws.set_label(r"Surface Wet-Bulb Temperature $ \degree C $", fontsize=label_title_fontsize)
-    sc_cbar_era5.set_label(r"Surface Wet-Bulb Temperature $ \degree C $", fontsize=label_title_fontsize)
+    sc_cbar.set_label(r"Surface Wet-Bulb Temperature $ \degree C $", fontsize=label_title_fontsize)
 
     # abcd labels
     ax_scatter_ws.text(x=-25, y=5, s='a', size=26)

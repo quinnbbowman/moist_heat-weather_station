@@ -32,12 +32,12 @@ cleanlats = lats_flat[~np.isnan(lats_flat)]
 interpinputs = []
 for i in range(len(cleantimes)):
 	if not np.isnan(cleantimes[i]):
-    		interpinputs +=[[cleanlons[i],cleanlats[i],cleantimes[i]]]#location of monthly maximums to interpolate
+		interpinputs +=[[cleanlons[i],cleanlats[i],cleantimes[i]]]#location of monthly maximums to interpolate
 
 interpinputszmeans = []
 for i in range(len(cleantimes)):
 	if not np.isnan(cleantimes[i]):
-    		interpinputszmeans += [[cleanlats[i],cleantimes[i]]] #location of monthly maximums to interpolate for zonal mean satmse
+		interpinputszmeans += [[cleanlats[i],cleantimes[i]]] #location of monthly maximums to interpolate for zonal mean satmse
 
 del times, lons,lats,times_flat,lons_flat,lats_flat,cleantimes,cleanlons,cleanlats
 timeseriesfullD = np.arange(np.datetime64('1931-01'), np.datetime64('2021-06'), np.timedelta64(1, "D"))
@@ -50,7 +50,7 @@ era5mse500 = xr.open_dataset('satmse_500,40-22.nc',chunks={'time':100})
 era5mse500 = era5mse500.reindex({'time':timeseriesfullD}) #reindex to ensure times are consistent
 msezmean = era5mse500.mean(dim='lon') #zonal mean
 ys = msezmean.lat #define regular grid indices
-ts = np.array(msezmean.time,dtype='datetime64')
+ts = np.array(msezmean.time,dtype='datetime64[ns]')
 ts = np.int64(ts)
 e5zmses = msezmean.satmse
 del era5mse500
@@ -71,7 +71,7 @@ era5mse500 = xr.open_dataset('satmse_500,40-22.nc',chunks={'time':100})
 era5mse500 = era5mse500.reindex({'time':timeseriesfullD})
 xs = era5mse500.lon
 ys = era5mse500.lat
-ts = np.array(era5mse500.time,dtype='datetime64')
+ts = np.array(era5mse500.time,dtype='datetime64[ns]')
 ts = np.int64(ts)
 e5mses = era5mse500.satmse
 del era5mse500
@@ -92,7 +92,7 @@ era5satdef = xr.open_dataset('satdef850,40-22.nc',chunks={'time':100})
 era5satdef = era5satdef.reindex({'time':timeseriesfullD})
 xs = era5satdef.lon
 ys = era5satdef.lat
-ts = np.array(era5satdef.time,dtype='datetime64')
+ts = np.array(era5satdef.time,dtype='datetime64[ns]')
 ts = np.int64(ts)
 e5satdefs = era5satdef.satdef
 del era5satdef
@@ -113,7 +113,7 @@ era5surfmse = xr.open_dataset('surfmse,40-22.nc',chunks={'time':100})
 era5surfmse = era5surfmse.reindex({'time':timeseriesfullD})
 xs = era5surfmse.lon
 ys = era5surfmse.lat
-ts = np.array(era5surfmse.time,dtype='datetime64')
+ts = np.array(era5surfmse.time,dtype='datetime64[ns]')
 ts = np.int64(ts)
 e5surfmse = era5surfmse.mse
 del era5surfmse
@@ -132,7 +132,7 @@ era5surfwbt = xr.open_dataset('surfwbt,40-22.nc',chunks={'time':100})
 era5surfwbt = era5surfwbt.reindex({'time':timeseriesfullD})
 xs = era5surfwbt.lon
 ys = era5surfwbt.lat
-ts = np.array(era5surfwbt.time,dtype='datetime64')
+ts = np.array(era5surfwbt.time,dtype='datetime64[ns]')
 ts = np.int64(ts)
 e5surfwbt = era5surfwbt.wbt
 del era5surfwbt

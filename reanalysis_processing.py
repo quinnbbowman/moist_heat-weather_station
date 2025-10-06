@@ -78,21 +78,11 @@ def multithreaded_era5_wbt_mse_calc(yearset):
         P_xr = xr.open_dataset('2msurf_p,02-22.nc')
         Z_xr = xr.open_dataset('2m_geop,02-22.nc')
 
-    #regrid from native .25x.25 to 1 degree grids
 
     Txr = Txr.chunk({'time': 100})  # t2m - kelvin
     T_dxr = T_dxr.chunk({'time': 100})  # d2m - kelvin
     P_xr = P_xr.chunk({'time': 100})  # sp - pascals
     Z_xr = Z_xr.chunk({'time': 100})
-
-    newlatgrid = np.arange(-20, 21, 1)
-    newlongrid = np.arange(-180, 180, 1)
-
-
-    Txr = Txr.interp(method='linear', lat=newlatgrid, lon=newlongrid)
-    T_dxr = T_dxr.interp(method='linear', lat=newlatgrid, lon=newlongrid)
-    P_xr = P_xr.interp(method='linear', lat=newlatgrid, lon=newlongrid)
-    Z_xr = Z_xr.interp(method='linear', lat=newlatgrid, lon=newlongrid)
 
     #again calculating for a day at a time multithreaded
     multiinputs_wbt = []
@@ -104,8 +94,8 @@ def multithreaded_era5_wbt_mse_calc(yearset):
         multiinputs_mse += [[P_xr.isel(time=i), Txr.isel(time=i), T_dxr.isel(time=i), Z_xr.isel(time=i)]]
 
     #initializing blank array for saving data
-    outar_wbt = np.zeros((len(Txr.time.values), len(Txr.lat.values), len(Txr.lon.values)), dtype=np.float64)
-    outar_mse = np.zeros((len(Txr.time.values), len(Txr.lat.values), len(Txr.lon.values)), dtype=np.float64)
+    outar_wbt = np.empty((len(Txr.time.values), len(Txr.lat.values), len(Txr.lon.values)), dtype=np.float64)
+    outar_mse = np.empty((len(Txr.time.values), len(Txr.lat.values), len(Txr.lon.values)), dtype=np.float64)
 
     del Txr, T_dxr, P_xr, Z_xr,newlatgrid, newlongrid
 
@@ -136,42 +126,77 @@ if __name__ == '__main__':
     multithreaded_era5_wbtcalc('t3')
     multithreaded_era5_wbtcalc('t4')
 
-#saves all the wet bulb temps into a netcdf
-wbt1 = np.load('t1wbts.npy')
-wbt2 = np.load('t2wbts.npy')
-wbt3 = np.load('t3wbts.npy')
-wbt4 = np.load('t4wbts.npy')
-wbtsfull = np.concatenate((wbt1,wbt2,wbt3,wbt4))
-
+#saves all the wet bulb temps into a netcdf and
 #assign new lat and lon grids to wrap furthest longitudes around for interpolation
-newlatgrid = np.arange(-20,21,1)
-newlongrid = np.arange(-180,181,1)
+newlatgrid = np.arange(-20,20.25,.25)
+newlongrid = np.arange(-180,180,.25)
 
 wbtds = xr.Dataset()
-wbtds = wbtds.assign_coords({'time':eratest.time,'lat':newlatgrid,'lon':newlongrid})
-newwbtar = np.zeros((len(wbtds.time),len(wbtds.lat),len(wbtds.lon)))
-newwbtar[:,:,:-1] = wbtsfull
-newwbtar[:,:,-1] = wbtsfull[:,:,0]
+wbtds = wbtds.assign_coords({'time':np.arange(np.datetime64('1940-01-01'),np.datetime64('2021-07-01'),np.timedelta64(1,'D')),'lat':newlatgrid,'lon':newlongrid})
+wbtds = wbtds.chunk({'time':100})
+print('loading time chunks and coords and making arrays')
+
+wbt1 = np.load('t1wbts.npy')
+t_40 = xr.open_dataset('2mT,40-61.nc').time
+wbt1 = xr.DataArray(data=wbt1,coords=dict(time=t_40,lat=newlatgrid,lon=newlongrid)).chunk({'time':100})
+
+wbt2 = np.load('t2wbts.npy')
+t_60 = xr.open_dataset('2mT,61-81.nc').time
+wbt2 = xr.DataArray(data=wbt2,coords=dict(time=t_60,lat=newlatgrid,lon=newlongrid)).chunk({'time':100})
+
+wbt3 = np.load('t3wbts.npy')
+t_80 = xr.open_dataset('2mT,81-02.nc').time
+wbt3 = xr.DataArray(data=wbt3,coords=dict(time=t_80,lat=newlatgrid,lon=newlongrid)).chunk({'time':100})
+
+wbt4 = np.load('t4wbts.npy')
+t_02 =  xr.open_dataset('2mT,02-22.nc').time
+wbt4 = xr.DataArray(data=wbt4,coords=dict(time=t_02,lat=newlatgrid,lon=newlongrid)).chunk({'time':100})
+del t_40,t_60,t_80,t_02
+print('concatenating')
+wbtds['wbt'] = xr.concat([wbt1,wbt2,wbt3,wbt4],dim='time')
+
+#wrapping longitude
+newwbtar = np.empty((len(wbtds.time),len(wbtds.lat),len(wbtds.lon)+1))
+newwbtar[:,:,:-1] = wbtds.values[:,:,:-1]
+newwbtar[:,:,-1] = wbtds.values[:,:,0]
+print('saving to ncdf')
 wbtds['wbt'] = (('time','lat','lon'),newwbtar)
 wbtds.to_netcdf('surfwbt,40-22.nc') #surface wet-bulb temperature array
-
+del wbtds,wbt1,wbt2,wbt3,wbt4,newwbtar
 
 #concatting mses
-mse1 = np.load('t1mses.npy')
-mse2 = np.load('t2mses.npy')
-mse3 = np.load('t3mses.npy')
-mse4 = np.load('t4mses.npy')
-msesfull = np.concatenate((mse1,mse2,mse3,mse4))
-
-#assign new lat and lon grids to wrap furthest longitudes around for interpolation
 mseds = xr.Dataset()
-mseds = mseds.assign_coords({'time':eratest.time,'lat':newlatgrid,'lon':newlongrid})
-newmsear = np.zeros((len(mseds.time),len(mseds.lat),len(mseds.lon)))
-newmsear[:,:,:-1] = msesfull
-newmsear[:,:,-1] = msesfull[:,:,0]
-wbtds['mse'] = (('time','lat','lon'),newmsear)
-wbtds.to_netcdf('surfmse,40-22.nc') #surface mse temperature array
+mseds = mseds.assign_coords({'time':np.arange(np.datetime64('1940-01-01'),np.datetime64('2021-07-01'),np.timedelta64(1,'D')),'lat':newlatgrid,'lon':newlongrid})
+mseds = mseds.chunk({'time':100})
+print('loading time chunks and coords and making arrays')
 
+mse1 = np.load('t1mses.npy')
+t_40 = xr.open_dataset('2mT,40-61.nc').time
+mse1 = xr.DataArray(data=mse1,coords=dict(time=t_40,lat=newlatgrid,lon=newlongrid)).chunk({'time':100})
+
+mse2 = np.load('t2mses.npy')
+t_60 = xr.open_dataset('2mT,61-81.nc').time
+mse2 = xr.DataArray(data=mse2,coords=dict(time=t_60,lat=newlatgrid,lon=newlongrid)).chunk({'time':100})
+
+wmse3 = np.load('t3mses.npy')
+t_80 = xr.open_dataset('2mT,81-02.nc').time
+wmse3 = xr.DataArray(data=wmse3,coords=dict(time=t_80,lat=newlatgrid,lon=newlongrid)).chunk({'time':100})
+
+mse4 = np.load('t4mses.npy')
+t_02 =  xr.open_dataset('2mT,02-22.nc').time
+mse4 = xr.DataArray(data=mse4,coords=dict(time=t_02,lat=newlatgrid,lon=newlongrid)).chunk({'time':100})
+del t_40,t_60,t_80,t_02
+print('concatenating')
+mseds['mse'] = xr.concat([mse1,mse2,wmse3,mse4],dim='time')
+
+#wrapping longitude
+newmsear = np.empty((len(mseds.time),len(mseds.lat),len(mseds.lon)+1))
+newmsear[:,:,:-1] = mseds.values[:,:,:-1]
+newmsear[:,:,-1] = mseds.values[:,:,0]
+print('saving to ncdf')
+mseds['mse'] = (('time','lat','lon'),newmsear)
+mseds.to_netcdf('surfmse,40-22.nc') #surface wet-bulb temperature array
+del mseds,mse1,mse2,mse3,mse4,newmsear
 #calculate satdef from 850hpa relative and specific humidity
 
 q1 = xr.open_dataset('40-22,850hpa_sphum.nc',chunks={'time':100}) #kg/kg
@@ -184,7 +209,7 @@ satdefar = satdefar.values
 satdef_850 = xr.Dataset()
 satdef_850 = satdef_850.assign_coords({'time':eratest.time,'lat':newlatgrid,'lon':newlongrid})
 
-newsatdefar = np.zeros((len(satdef_850.time),len(satdef_850.lat),len(satdef_850.lon)))
+newsatdefar = np.zeros((len(satdef_850.time),len(satdef_850.lat),len(satdef_850.lon)+1))
 newsatdefar[:,:,:-1] = satdefar
 newsatdefar[:,:,-1] = satdefar[:,:,0]
 satdef_850['satdef'] = (('time','lat','lon'),newsatdefar)
@@ -202,7 +227,7 @@ mse500ar = mse_500.values
 satmse_500 = xr.Dataset()
 satmse_500 = satmse_500.assign_coords({'time':eratest.time,'lat':newlatgrid,'lon':newlongrid})
 
-newsatmsear = np.zeros((len(satmse_500.time),len(satmse_500.lat),len(satmse_500.lon)))
+newsatmsear = np.zeros((len(satmse_500.time),len(satmse_500.lat),len(satmse_500.lon)+1))
 newsatmsear[:,:,:-1] = mse500ar
 newsatmsear[:,:,-1] = mse500ar[:,:,0]
 satmse_500['satmse'] = (('time','lat','lon'),newsatmsear)
